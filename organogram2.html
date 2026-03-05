@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eastern Cape Department of Education PSU · Organogram</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;900&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d1b2a;
+  --surface: #112236;
+  --surface2: #162d45;
+  --border: #1e3d5c;
+  --accent: #1e88e5;
+  --accent2: #0d6efd;
+  --filled: #00c853;
+  --vacant: #ff5252;
+  --psu: #ab47bc;
+  --gold: #ffab00;
+  --text: #e3edf7;
+  --muted: #7a9bbf;
+  --line: #1e88e540;
+  --line-solid: #1e88e5;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html, body {
+  height: 100%;
+  overflow: hidden; /* let inner canvas scroll, not the page */
+}
+
+body {
+  background: var(--bg);
+  font-family: 'Barlow', sans-serif;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 0;
+}
+
+/* ═══ HEADER ═══ */
+.header {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #7a9bbf 0%, #112236 50%, #e3edf7 100%);
+  border-bottom: 2px solid var(--border);
+  padding: 1.5rem 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  z-index: 100;
+}
+
+.header-left h1 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fff;
+}
+.header-left h1 span { color: var(--accent); }
+.header-sub { font-size: 0.85rem; color: var(--muted); margin-top: 0.2rem; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.stats-pill {
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
+}
+.stat-chip {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 0.4rem 1rem;
+  border-radius: 40px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.stat-chip.filled { border-color: var(--filled); color: var(--filled); }
+.stat-chip.vacant { border-color: var(--vacant); color: var(--vacant); }
+.stat-chip.psu-chip { border-color: var(--psu); color: var(--psu); }
+
+/* ═══ TABS ═══ */
+.tab-bar {
+  flex-shrink: 0;
+  display: flex;
+  gap: 0;
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
+  overflow-x: auto;
+  padding: 0 2rem;
+}
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 1rem 1.8rem;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  margin-bottom: -2px;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ═══ FILTER BAR ═══ */
+.filter-bar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 1rem 2.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.filter-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.filter-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 0.35rem 1rem;
+  border-radius: 4px;
+  font-family: 'Barlow', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-btn:hover { color: var(--text); border-color: var(--accent); }
+.filter-btn.active-filter { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ═══ CANVAS AREA ═══ */
+.view-container {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 3rem 2.5rem;
+  min-height: 0;
+}
+/* inner content expands to its natural size — scrollbars handle the rest */
+#viewContainer > div:not(.totals-bar) {
+  min-width: max-content;
+}
+
+/* ═══ ORG TREE SYSTEM ═══ */
+
+/* A "tree node" wraps a card + its children */
+.tree-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+/* The children row sits below the parent */
+.tree-children {
+  display: flex;
+  flex-direction: row;
+  gap: 1.5rem;
+  align-items: flex-start;
+  justify-content: center;
+  position: relative;
+  padding-top: 2.5rem; /* space for the lines */
+  margin-top: 0;
+}
+
+/* Vertical line dropping FROM parent to the horizontal bus */
+.tree-children::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 1.5rem;
+  background: var(--line-solid);
+  opacity: 0.6;
+}
+
+/* Horizontal bus line connecting all children */
+.tree-children.multi-child::after {
+  content: '';
+  position: absolute;
+  top: 1.5rem;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--line-solid);
+  opacity: 0.6;
+}
+
+/* Vertical stub dropping FROM bus DOWN to each child */
+.tree-node-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+.tree-node-wrap::before {
+  content: '';
+  display: block;
+  width: 2px;
+  height: 1rem;
+  background: var(--line-solid);
+  opacity: 0.6;
+  margin-bottom: 0;
+}
+
+/* single child: no bus needed */
+.tree-children.single-child::after { display: none; }
+.tree-children.single-child::before { height: 2.5rem; }
+.tree-children.single-child .tree-node-wrap::before { display: none; }
+
+/* ═══ CARDS ═══ */
+.card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 0.9rem 1.2rem;
+  min-width: 160px;
+  max-width: 210px;
+  text-align: center;
+  cursor: default;
+  transition: transform 0.15s, box-shadow 0.15s;
+  position: relative;
+  z-index: 1;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.card-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  line-height: 1.3;
+  margin-bottom: 0.35rem;
+}
+.card-name {
+  font-size: 0.82rem;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+.card-badges {
+  display: flex;
+  gap: 0.3rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.3rem;
+}
+.badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.15rem 0.55rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+.badge.filled { background: #00c85325; color: var(--filled); border: 1px solid #00c85360; }
+.badge.vacant { background: #ff525225; color: var(--vacant); border: 1px solid #ff525260; }
+.badge.psu { background: #ab47bc25; color: var(--psu); border: 1px solid #ab47bc60; }
+
+/* Card color variants */
+.card.c-chief { border-top-color: #ef5350; }
+.card.c-director { border-top-color: var(--accent); }
+.card.c-manager { border-top-color: var(--filled); }
+.card.c-specialist { border-top-color: var(--gold); }
+.card.c-tech { border-top-color: #7e57c2; }
+.card.c-admin { border-top-color: #26a69a; }
+.card.c-psu { border-top-color: var(--psu); background: #1a1030; }
+
+/* ═══ SECTION HEADER ═══ */
+.section-header {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 2.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ═══ PILLAR DIVIDER ═══ */
+.pillar-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.3rem 1rem;
+  margin-bottom: 1rem;
+  display: inline-block;
+}
+
+/* ═══ SPACING HELPERS ═══ */
+.mt-2 { margin-top: 2rem; }
+.mt-3 { margin-top: 3rem; }
+.mb-1 { margin-bottom: 1rem; }
+
+.loader { text-align:center; color: var(--muted); padding: 4rem; font-style: italic; }
+
+/* ═══ FILTER HIDDEN ═══ */
+.card[style*="display: none"],
+.card[style*="display:none"] { display: none !important; }
+
+/* ═══ TOTALS BAR ═══ */
+.totals-bar {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.totals-bar .stat {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+/* highlight when filtered */
+.filter-highlight { outline: 2px solid var(--gold); outline-offset: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>🏛 Eastern Cape Department of Education <span>PSU</span> · Organogram</h1>
+    <div class="header-sub">Eastern Cape Department of Education · Programme Support Unit</div>
+  </div>
+  <div class="stats-pill" id="globalStats">
+    <div class="stat-chip">Mr. Mduba · Chief Director</div>
+    <div class="stat-chip">Mr. Sivuka · Dir. Delivery</div>
+    <div class="stat-chip">Ms. Pefole · Dir. Planning</div>
+  </div>
+</div>
+
+<div class="tab-bar" id="tabBar">
+  <button class="tab-btn active" data-view="executive">🏢 EXECUTIVE</button>
+  <button class="tab-btn" data-view="delivery">🏗 DIRECTOR DELIVERY</button>
+  <button class="tab-btn" data-view="planning">📋 DIRECTOR PLANNING</button>
+</div>
+
+<div class="filter-bar" id="filterBar">
+  <div class="filter-group">
+    <span class="filter-label">STATUS:</span>
+    <button class="filter-btn active-filter" data-filter="status-all">All</button>
+    <button class="filter-btn" data-filter="status-filled">Filled</button>
+    <button class="filter-btn" data-filter="status-vacant">Vacant</button>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">TYPE:</span>
+    <button class="filter-btn active-filter" data-filter="psu-all">All</button>
+    <button class="filter-btn" data-filter="psu-only">PSU Only</button>
+    <button class="filter-btn" data-filter="psu-exclude">Dept. Only</button>
+  </div>
+</div>
+
+<div id="viewContainer" class="view-container">
+  <div class="loader">Loading…</div>
+</div>
+
+<script>
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function card(title, name, badges, cls='c-director', attrs={}) {
+  const badgeHtml = badges.map(([label, type]) =>
+    `<span class="badge ${type}">${label}</span>`
+  ).join('');
+  const dataAttrs = Object.entries(attrs).map(([k,v])=>`data-${k}="${v}"`).join(' ');
+  const namePart = name ? `<div class="card-name">${name}</div>` : '';
+  return `<div class="card ${cls}" ${dataAttrs}>
+    <div class="card-title">${title}</div>
+    ${namePart}
+    <div class="card-badges">${badgeHtml}</div>
+  </div>`;
+}
+
+function filled(n='') { return [`FILLED${n?' '+n:''}`, 'filled']; }
+function vacant(n='') { return [`VACANT${n?' '+n:''}`, 'vacant']; }
+function psu(n='')    { return [`PSU${n?' '+n:''}`, 'psu']; }
+
+// Wrap a parent card and its children into a tree structure
+function tree(parentHtml, children=[], extraChildClass='') {
+  if (!children.length) return `<div class="tree-node">${parentHtml}</div>`;
+  const cls = children.length === 1 ? 'single-child' : 'multi-child';
+  const wrappedChildren = children.map(c =>
+    `<div class="tree-node-wrap">${c}</div>`
+  ).join('');
+  return `<div class="tree-node">
+    ${parentHtml}
+    <div class="tree-children ${cls} ${extraChildClass}">
+      ${wrappedChildren}
+    </div>
+  </div>`;
+}
+
+// Row of sibling trees (peers at same level)
+function row(items, justify='center') {
+  return `<div style="display:flex;flex-wrap:wrap;gap:2rem;justify-content:${justify};align-items:flex-start;">
+    ${items.join('')}
+  </div>`;
+}
+
+// ── VIEWS ────────────────────────────────────────────────────────────────────
+
+// ┌─ EXECUTIVE ────────────────────────────────────────────────────────────────
+const executiveView = () => {
+  // System Manager sub-tree
+  const systemMgrSubtree = tree(
+    card('Systems Manager', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'executive'}),
+    [
+      card('Training Lead & Systems Controller', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'executive'}),
+      card('System Compliance Lead / IRM System Controller', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'executive'}),
+      card('Snr Admin Officer / IRM / Data Analysts & Capturer', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'executive'}),
+    ]
+  );
+
+  // All direct reports to Mr Mduba
+  const directReports = [
+    card('Manager: Infrastructure Grant & Programme Reporting', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'executive'}),
+    card('Senior Programme Administrator / Programme Scheduler', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'executive'}),
+    card('Communications Specialist', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'executive'}),
+    systemMgrSubtree,
+    card('Audit & Compliance Lead', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'executive'}),
+    card('Immovable Assets Lead', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'executive'}),
+    card('WIP Assets Lead', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'executive'}),
+    card('RFU Assets Lead', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'executive'}),
+    card('Fair Value Assets Lead', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'executive'}),
+    card('Accounting Clerks (Immovable Assets)', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'executive'}),
+    card('Specialist Programme Manager Rationalisation', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'executive'}),
+  ].map(c => `<div class="tree-node-wrap">${c}</div>`);
+
+  return `
+    <div class="section-header">🏢 Executive Leadership · 1.1 Chief Director PRM</div>
+    ${tree(
+      card('Chief Director PRM', 'Mr. Mduba', [filled()], 'c-chief', {psu:'false',status:'filled',department:'executive'}),
+      []
+    )}
+    <div class="tree-children multi-child" style="padding-top:2.5rem;">
+      ${directReports.join('')}
+    </div>
+    <br>
+    <div class="section-header" style="margin-top:3rem;">🏗 Director Delivery &amp; 📋 Director Planning</div>
+    ${row([
+      card('Director Delivery', 'Mr. Sivuka', [filled()], 'c-director', {psu:'false',status:'filled',department:'executive'}),
+      card('Director Planning', 'Ms. Pefole', [filled()], 'c-director', {psu:'false',status:'filled',department:'executive'}),
+    ])}
+  `;
+};
+
+// ┌─ DELIVERY ─────────────────────────────────────────────────────────────────
+const deliveryView = () => {
+
+  // 1.1 Chief Architect
+  const arch = tree(
+    card('Chief Architect', '', [filled()], 'c-chief', {psu:'false',status:'filled',department:'delivery'}),
+    [
+      card('Architect', '', [filled()], 'c-tech', {psu:'false',status:'filled',department:'delivery'}),
+      card('Architect', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+    ]
+  );
+
+  // 1.2 Chief QS
+  const qs = tree(
+    card('Chief Quantity Surveyor', '', [filled()], 'c-chief', {psu:'false',status:'filled',department:'delivery'}),
+    [
+      card('Quantity Surveyor', '', [filled()], 'c-tech', {psu:'false',status:'filled',department:'delivery'}),
+      card('Quantity Surveyor', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('Quantity Surveyor', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('Quantity Surveyor', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+    ]
+  );
+
+  // 1.3 Chief Engineer
+  const eng = tree(
+    card('Chief Engineer', '', [filled()], 'c-chief', {psu:'false',status:'filled',department:'delivery'}),
+    [
+      card('Engineer / DD Infrastructure Project / Programme Management', '', [filled()], 'c-tech', {psu:'false',status:'filled',department:'delivery'}),
+    ]
+  );
+
+  // 1.4 DD Equipment — Programme Manager PSU in middle
+  const pmSubtree = tree(
+    card('Programme Manager', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+    [
+      card('Senior Project Managers (IAs)', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('Administrators', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('Snr Admin Officers', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('Clerks of Works', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('Civil Engineer', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('Mechanical Engineer', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('Electrical Engineer', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('Stakeholder Engagement Specialist / Social Facilitator', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('Health & Safety Agents', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+    ]
+  );
+
+  const ddEquip = tree(
+    card('Deputy Director Equipment', 'Mr. Msiwa', [filled()], 'c-director', {psu:'false',status:'filled',department:'delivery'}),
+    [
+      pmSubtree,
+      card('Control Works Inspectors (h/o)', '', [filled()], 'c-tech', {psu:'false',status:'filled',department:'delivery'}),
+      card('Chief Works Inspectors', '', [filled()], 'c-tech', {psu:'false',status:'filled',department:'delivery'}),
+      card('Works Inspectors', '', [filled()], 'c-tech', {psu:'false',status:'filled',department:'delivery'}),
+    ]
+  );
+
+  // 1.5 DD SCM
+  const scmLead = tree(
+    card('SCM Lead', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+    [
+      card('SCM Programme Manager', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('SCM DD Audit Readiness', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('SCM DD Procurement', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('SCM Policy Development', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('SCM IA Support', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+    ]
+  );
+
+  const ddSCM = tree(
+    card('Deputy Director SCM', '', [filled()], 'c-director', {psu:'false',status:'filled',department:'delivery'}),
+    [
+      scmLead,
+      card('Assistant Director SCM', '', [filled()], 'c-manager', {psu:'false',status:'filled',department:'delivery'}),
+      card('Clerk SCM', '', [filled()], 'c-admin', {psu:'false',status:'filled',department:'delivery'}),
+    ]
+  );
+
+  // 1.6 DD Finance
+  const asst = tree(
+    card('Assistant Director Finance', '', [vacant()], 'c-manager', {psu:'false',status:'vacant',department:'delivery'}),
+    [
+      card('Finance Administrator Lead', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'delivery'}),
+      card('Systems & Reporting Lead (Finance)', '', [filled()], 'c-manager', {psu:'false',status:'filled',department:'delivery'}),
+      card('Accounting Clerks (Finance)', '', [filled()], 'c-admin', {psu:'false',status:'filled',department:'delivery'}),
+    ]
+  );
+
+  const ddFinance = tree(
+    card('Deputy Director Finance', '', [filled()], 'c-director', {psu:'false',status:'filled',department:'delivery'}),
+    [
+      asst,
+      card('Senior State Accountant', '', [filled()], 'c-admin', {psu:'false',status:'filled',department:'delivery'}),
+      card('Accounting Clerk', '', [filled()], 'c-admin', {psu:'false',status:'filled',department:'delivery'}),
+    ]
+  );
+
+  return `
+    <div class="section-header">🏗 Director Delivery · Mr. Sivuka</div>
+
+    ${tree(
+      card('Director Delivery', 'Mr. Sivuka', [filled()], 'c-director', {psu:'false',status:'filled',department:'delivery'}),
+      [arch, qs, eng, ddEquip, ddSCM, ddFinance]
+    )}
+  `;
+};
+
+// ┌─ PLANNING ──────────────────────────────────────────────────────────────────
+const planningView = () => {
+
+  // Deputy Directors under Director Planning
+  // (Mirroring Delivery structure with planning-specific roles)
+  const ddInfraPlanning = tree(
+    card('Deputy Director Infrastructure Planning', '', [filled()], 'c-director', {psu:'false',status:'filled',department:'planning'}),
+    [
+      card('Infrastructure Planner', '', [filled()], 'c-specialist', {psu:'false',status:'filled',department:'planning'}),
+      card('Infrastructure Planner', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'planning'}),
+      card('Infrastructure Planner', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'planning'}),
+    ]
+  );
+
+  const ddNeedsAssessment = tree(
+    card('Deputy Director Needs Assessment', '', [filled()], 'c-director', {psu:'false',status:'filled',department:'planning'}),
+    [
+      card('Senior Planner / Needs Analyst', '', [filled()], 'c-specialist', {psu:'false',status:'filled',department:'planning'}),
+      card('Needs Assessment Officer', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'planning'}),
+      card('Needs Assessment Officer', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'planning'}),
+    ]
+  );
+
+  const ddConditionAssessment = tree(
+    card('Deputy Director Condition Assessment', '', [filled()], 'c-director', {psu:'false',status:'filled',department:'planning'}),
+    [
+      card('Condition Assessor', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'planning'}),
+      card('Condition Assessor', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'planning'}),
+      card('Senior Condition Assessor', '', [filled()], 'c-specialist', {psu:'false',status:'filled',department:'planning'}),
+    ]
+  );
+
+  const gisTeam = tree(
+    card('GIS Lead', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'planning'}),
+    [
+      card('GIS Technician', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'planning'}),
+      card('GIS Technician', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'planning'}),
+    ]
+  );
+
+  const ddGIS = tree(
+    card('Deputy Director GIS & Data', '', [vacant()], 'c-director', {psu:'false',status:'vacant',department:'planning'}),
+    [
+      gisTeam,
+      card('Data Analyst', '', [filled()], 'c-specialist', {psu:'false',status:'filled',department:'planning'}),
+    ]
+  );
+
+  const adminSupport = tree(
+    card('Senior Programme Administrator', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'planning'}),
+    [
+      card('Programme Scheduler', '', [psu()], 'c-psu', {psu:'true',status:'filled',department:'planning'}),
+      card('Admin Officer', '', [filled()], 'c-admin', {psu:'false',status:'filled',department:'planning'}),
+    ]
+  );
+
+  return `
+    <div class="section-header">📋 Director Planning · Ms. Pefole</div>
+
+    ${tree(
+      card('Director Planning', 'Ms. Pefole', [filled()], 'c-director', {psu:'false',status:'filled',department:'planning'}),
+      [ddInfraPlanning, ddNeedsAssessment, ddConditionAssessment, ddGIS, adminSupport]
+    )}
+  `;
+};
+
+// ── ROUTER ────────────────────────────────────────────────────────────────────
+
+const viewFns = {
+  executive: executiveView,
+  delivery: deliveryView,
+  planning: planningView,
+};
+
+let currentFilters = { status: 'all', psu: 'all' };
+
+function calculateTotals() {
+  const cards = document.querySelectorAll('#viewContainer .card');
+  let f=0, v=0, p=0;
+  cards.forEach(c => {
+    if (c.getAttribute('data-psu') === 'true') p++;
+    else if (c.getAttribute('data-status') === 'filled') f++;
+    else if (c.getAttribute('data-status') === 'vacant') v++;
+  });
+  let bar = document.querySelector('.totals-bar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.className = 'totals-bar';
+    document.getElementById('viewContainer').prepend(bar);
+  }
+  bar.innerHTML = `
+    <span class="stat" style="color:var(--filled)">✅ FILLED: ${f}</span>
+    <span class="stat" style="color:var(--vacant)">⚠ VACANT: ${v}</span>
+    <span class="stat" style="color:var(--psu)">🟣 PSU: ${p}</span>
+  `;
+}
+
+function applyFilters() {
+  document.querySelectorAll('#viewContainer .card').forEach(card => {
+    const isPsu = card.getAttribute('data-psu') === 'true';
+    const status = card.getAttribute('data-status');
+
+    let show = true;
+    if (currentFilters.status === 'filled' && status !== 'filled') show = false;
+    if (currentFilters.status === 'vacant' && status !== 'vacant') show = false;
+    if (currentFilters.psu === 'psu-only' && !isPsu) show = false;
+    if (currentFilters.psu === 'psu-exclude' && isPsu) show = false;
+
+    card.style.display = show ? '' : 'none';
+    card.classList.toggle('filter-highlight', currentFilters.psu === 'psu-only' && isPsu);
+  });
+  calculateTotals();
+}
+
+function loadView(name) {
+  const container = document.getElementById('viewContainer');
+  container.innerHTML = (viewFns[name] || (() => '<div class="loader">View not found</div>'))();
+  // reset filters visually
+  currentFilters = { status: 'all', psu: 'all' };
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active-filter'));
+  document.querySelectorAll('[data-filter="status-all"],[data-filter="psu-all"]')
+    .forEach(b => b.classList.add('active-filter'));
+  calculateTotals();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadView(btn.getAttribute('data-view'));
+    });
+  });
+
+  // Filters
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const [group, val] = btn.getAttribute('data-filter').split('-');
+      // deactivate siblings
+      document.querySelectorAll(`[data-filter^="${group}-"]`).forEach(b => b.classList.remove('active-filter'));
+      btn.classList.add('active-filter');
+      if (group === 'status') currentFilters.status = val;
+      if (group === 'psu') { currentFilters.psu = val === 'all' ? 'all' : btn.getAttribute('data-filter').replace('psu-',''); }
+      applyFilters();
+    });
+  });
+
+  loadView('executive');
+});
+</script>
+</body>
+</html>
